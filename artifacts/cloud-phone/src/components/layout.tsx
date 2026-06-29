@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Server, Smartphone, LayoutDashboard, Monitor, Settings, Menu } from "lucide-react";
+import { Server, Smartphone, LayoutDashboard, Monitor, Settings, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 
@@ -9,6 +9,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Emulators", href: "/emulators", icon: Smartphone },
+    { name: "ROM Library", href: "/roms", icon: HardDrive },
     { name: "Profiles", href: "/profiles", icon: Settings },
     { name: "System", href: "/system", icon: Server },
   ];

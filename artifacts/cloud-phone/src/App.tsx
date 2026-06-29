@@ -10,6 +10,7 @@ import { EmulatorsPage } from '@/pages/emulators';
 import { NewEmulatorPage } from '@/pages/emulators/new';
 import { EmulatorDetail } from '@/pages/emulators/detail';
 import { ProfilesPage } from '@/pages/profiles';
+import { RomsPage } from '@/pages/roms';
 import { SystemPage } from '@/pages/system';
 import NotFound from '@/pages/not-found';
 
@@ -24,6 +25,7 @@ function Router() {
         <Route path="/emulators/new" component={NewEmulatorPage} />
         <Route path="/emulators/:id" component={EmulatorDetail} />
         <Route path="/profiles" component={ProfilesPage} />
+        <Route path="/roms" component={RomsPage} />
         <Route path="/system" component={SystemPage} />
         <Route component={NotFound} />
       </Switch>
