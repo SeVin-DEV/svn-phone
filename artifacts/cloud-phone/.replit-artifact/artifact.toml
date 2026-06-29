@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Cloud Phone Manager"
+version = "1.0.0"
+id = "artifacts/cloud-phone"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23054
+
+[services.development]
+run = "pnpm --filter @workspace/cloud-phone run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cloud-phone", "run", "build" ]
+publicDir = "artifacts/cloud-phone/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23054"
+BASE_PATH = "/"

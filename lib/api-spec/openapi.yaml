@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for Android Cloud Phone Manager
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: emulators
+    description: Android emulator instance management
+  - name: device-profiles
+    description: Device hardware profile templates
+  - name: system
+    description: Host system resource information
+  - name: roms
+    description: ROM image library management
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,392 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /emulators:
+    get:
+      operationId: listEmulators
+      tags: [emulators]
+      summary: List all emulator instances
+      responses:
+        "200":
+          description: List of emulator instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Emulator"
+
+    post:
+      operationId: createEmulator
+      tags: [emulators]
+      summary: Create a new emulator instance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmulatorRequest"
+      responses:
+        "201":
+          description: Created emulator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emulator"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /emulators/{id}:
+    get:
+      operationId: getEmulator
+      tags: [emulators]
+      summary: Get an emulator instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Emulator details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emulator"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    put:
+      operationId: updateEmulator
+      tags: [emulators]
+      summary: Update emulator configuration (must be stopped)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEmulatorRequest"
+      responses:
+        "200":
+          description: Updated emulator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emulator"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    delete:
+      operationId: deleteEmulator
+      tags: [emulators]
+      summary: Delete an emulator instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /emulators/{id}/start:
+    post:
+      operationId: startEmulator
+      tags: [emulators]
+      summary: Start an emulator instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Emulator started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emulator"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /emulators/{id}/stop:
+    post:
+      operationId: stopEmulator
+      tags: [emulators]
+      summary: Stop a running emulator instance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Emulator stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emulator"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /emulators/{id}/snapshot:
+    post:
+      operationId: snapshotEmulator
+      tags: [emulators]
+      summary: Save a snapshot of a running emulator
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSnapshotRequest"
+      responses:
+        "200":
+          description: Snapshot saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Snapshot"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /emulators/{id}/snapshots:
+    get:
+      operationId: listSnapshots
+      tags: [emulators]
+      summary: List saved snapshots for an emulator
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Snapshot list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Snapshot"
+
+  /device-profiles:
+    get:
+      operationId: listDeviceProfiles
+      tags: [device-profiles]
+      summary: List all available device profiles
+      responses:
+        "200":
+          description: Device profile list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeviceProfile"
+
+    post:
+      operationId: createDeviceProfile
+      tags: [device-profiles]
+      summary: Create a custom device profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeviceProfileRequest"
+      responses:
+        "201":
+          description: Created profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceProfile"
+
+  /device-profiles/{id}:
+    delete:
+      operationId: deleteDeviceProfile
+      tags: [device-profiles]
+      summary: Delete a custom device profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /system/resources:
+    get:
+      operationId: getSystemResources
+      tags: [system]
+      summary: Get host system resource usage
+      responses:
+        "200":
+          description: System resource metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemResources"
+
+  /system/android-versions:
+    get:
+      operationId: listAndroidVersions
+      tags: [system]
+      summary: List available Android versions/system images
+      responses:
+        "200":
+          description: Available Android versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AndroidVersion"
+
+  /roms:
+    get:
+      operationId: listRoms
+      tags: [roms]
+      summary: List all ROM images in the library
+      responses:
+        "200":
+          description: ROM image list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Rom"
+
+    post:
+      operationId: uploadRom
+      tags: [roms]
+      summary: Upload a ROM image file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+                romType:
+                  $ref: "#/components/schemas/RomType"
+                androidVersion:
+                  type: string
+                deviceName:
+                  type: string
+                description:
+                  type: string
+              required: [file, name, romType, androidVersion]
+      responses:
+        "201":
+          description: ROM uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rom"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /roms/{id}:
+    delete:
+      operationId: deleteRom
+      tags: [roms]
+      summary: Delete a ROM image from the library
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: ROM is in use by one or more emulators
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +427,258 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    EmulatorStatus:
+      type: string
+      enum: [stopped, starting, running, stopping, error]
+
+    EmulatorType:
+      type: string
+      enum: [redroid, qemu, avd]
+      description: |
+        redroid: Docker-based Android via Redroid (recommended, fast)
+        qemu: QEMU full-system emulation (for ARM/x86 device ROM dumps and custom ROMs)
+        avd: Android Virtual Device via Android SDK (standard Google emulator)
+
+    RomType:
+      type: string
+      enum: [redroid-gsi, qemu-arm, qemu-x86, custom]
+      description: |
+        redroid-gsi: Generic System Image (.img) for Redroid containers
+        qemu-arm: ARM64 ROM dump or LineageOS ARM build for QEMU aarch64
+        qemu-x86: x86/x86_64 ROM or GSI for QEMU (faster on x86 server)
+        custom: Custom or unknown format
+
+    HardwareSpec:
+      type: object
+      properties:
+        ramMb:
+          type: integer
+          description: RAM in megabytes
+          minimum: 512
+          maximum: 16384
+        cpuCores:
+          type: integer
+          description: Number of virtual CPU cores
+          minimum: 1
+          maximum: 8
+        storageGb:
+          type: integer
+          description: Internal storage in gigabytes
+          minimum: 4
+          maximum: 128
+        screenWidth:
+          type: integer
+          description: Screen width in pixels
+        screenHeight:
+          type: integer
+          description: Screen height in pixels
+        screenDpi:
+          type: integer
+          description: Screen density in DPI
+        hasGpu:
+          type: boolean
+          description: Enable GPU acceleration
+        hasCamera:
+          type: boolean
+          description: Enable virtual camera
+      required: [ramMb, cpuCores, storageGb, screenWidth, screenHeight, screenDpi, hasGpu, hasCamera]
+
+    Rom:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        romType:
+          $ref: "#/components/schemas/RomType"
+        filename:
+          type: string
+        sizeMb:
+          type: integer
+        androidVersion:
+          type: string
+        deviceName:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, romType, filename, sizeMb, androidVersion, createdAt]
+
+    Emulator:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        emulatorType:
+          $ref: "#/components/schemas/EmulatorType"
+        deviceProfileId:
+          type: string
+          nullable: true
+        romId:
+          type: string
+          nullable: true
+        containerId:
+          type: string
+          nullable: true
+        androidVersion:
+          type: string
+          description: Android version string (e.g. "14.0", "13.0")
+        apiLevel:
+          type: integer
+          description: Android API level
+        status:
+          $ref: "#/components/schemas/EmulatorStatus"
+        hardware:
+          $ref: "#/components/schemas/HardwareSpec"
+        vncPort:
+          type: integer
+          nullable: true
+          description: VNC port when running (QEMU only)
+        adbPort:
+          type: integer
+          nullable: true
+          description: ADB port when running
+        createdAt:
+          type: string
+          format: date-time
+        lastStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+        uptimeSeconds:
+          type: integer
+          nullable: true
+      required: [id, name, emulatorType, androidVersion, apiLevel, status, hardware, createdAt]
+
+    CreateEmulatorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        emulatorType:
+          $ref: "#/components/schemas/EmulatorType"
+        deviceProfileId:
+          type: string
+          nullable: true
+        romId:
+          type: string
+          nullable: true
+        androidVersion:
+          type: string
+        apiLevel:
+          type: integer
+        hardware:
+          $ref: "#/components/schemas/HardwareSpec"
+      required: [name, androidVersion, apiLevel, hardware]
+
+    UpdateEmulatorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        hardware:
+          $ref: "#/components/schemas/HardwareSpec"
+
+    Snapshot:
+      type: object
+      properties:
+        id:
+          type: string
+        emulatorId:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        sizeMb:
+          type: integer
+      required: [id, emulatorId, name, createdAt, sizeMb]
+
+    DeviceProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        manufacturer:
+          type: string
+        model:
+          type: string
+        isBuiltIn:
+          type: boolean
+        hardware:
+          $ref: "#/components/schemas/HardwareSpec"
+      required: [id, name, manufacturer, model, isBuiltIn, hardware]
+
+    CreateDeviceProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        manufacturer:
+          type: string
+        model:
+          type: string
+        hardware:
+          $ref: "#/components/schemas/HardwareSpec"
+      required: [name, manufacturer, model, hardware]
+
+    SystemResources:
+      type: object
+      properties:
+        cpuUsagePercent:
+          type: number
+        ramTotalMb:
+          type: integer
+        ramUsedMb:
+          type: integer
+        storageTotalGb:
+          type: number
+        storageUsedGb:
+          type: number
+        runningEmulators:
+          type: integer
+        maxEmulators:
+          type: integer
+      required: [cpuUsagePercent, ramTotalMb, ramUsedMb, storageTotalGb, storageUsedGb, runningEmulators, maxEmulators]
+
+    CreateSnapshotRequest:
+      type: object
+      properties:
+        name:
+          type: string
+      required: [name]
+
+    AndroidVersion:
+      type: object
+      properties:
+        version:
+          type: string
+        apiLevel:
+          type: integer
+        name:
+          type: string
+        isInstalled:
+          type: boolean
+        sizeMb:
+          type: integer
+          nullable: true
+      required: [version, apiLevel, name, isInstalled]

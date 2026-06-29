@@ -1,0 +1,1 @@
+- [api-zod DOM types + UploadRomBody collision](api-zod-fixes.md) — two required fixes for lib/api-zod typecheck to pass; must not be reverted.
