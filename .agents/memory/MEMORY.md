@@ -1,1 +1,2 @@
 - [api-zod DOM types + UploadRomBody collision](api-zod-fixes.md) — two required fixes for lib/api-zod typecheck to pass; must not be reverted.
+- [dockerode esbuild externalize](dockerode-esbuild.md) — dockerode must be in the external list in build.mjs or its optional deps (ssh2, grpc) crash at runtime.

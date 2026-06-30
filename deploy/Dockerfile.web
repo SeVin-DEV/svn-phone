@@ -1,0 +1,31 @@
+FROM node:24-slim AS builder
+
+WORKDIR /build
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+
+COPY lib/api-spec/package.json         lib/api-spec/
+COPY lib/api-zod/package.json          lib/api-zod/
+COPY lib/api-client-react/package.json lib/api-client-react/
+COPY lib/db/package.json               lib/db/
+COPY artifacts/cloud-phone/package.json artifacts/cloud-phone/
+
+RUN pnpm install --frozen-lockfile
+
+COPY lib/       lib/
+COPY artifacts/cloud-phone/ artifacts/cloud-phone/
+
+# Build libs (needed for type declarations), then Vite build
+RUN pnpm run typecheck:libs
+RUN pnpm --filter @workspace/cloud-phone run build
+
+# ── Serve static output with nginx ───────────────────────────────────────────
+FROM nginx:alpine
+
+COPY --from=builder /build/artifacts/cloud-phone/dist/ /usr/share/nginx/html/
+# nginx config is injected by docker-compose via volume mount (see nginx.conf)
+
+EXPOSE 80

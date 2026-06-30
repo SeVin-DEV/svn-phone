@@ -1,0 +1,66 @@
+FROM node:24-slim AS builder
+
+WORKDIR /build
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy workspace manifests first (better layer caching)
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+
+# Copy all package manifests
+COPY lib/api-spec/package.json        lib/api-spec/
+COPY lib/api-zod/package.json         lib/api-zod/
+COPY lib/api-client-react/package.json lib/api-client-react/
+COPY lib/db/package.json              lib/db/
+COPY artifacts/api-server/package.json artifacts/api-server/
+
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY lib/       lib/
+COPY artifacts/api-server/ artifacts/api-server/
+
+# Build libs then API bundle
+RUN pnpm run typecheck:libs
+RUN pnpm --filter @workspace/api-server run build
+
+# ── Runtime image ─────────────────────────────────────────────────────────────
+FROM node:24-slim
+
+# Install QEMU binaries (for QEMU-type emulators)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    qemu-system-x86 \
+    qemu-system-arm \
+    qemu-efi-aarch64 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy workspace manifests (needed so pnpm can resolve node_modules)
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY lib/api-spec/package.json        lib/api-spec/
+COPY lib/api-zod/package.json         lib/api-zod/
+COPY lib/api-client-react/package.json lib/api-client-react/
+COPY lib/db/package.json              lib/db/
+COPY artifacts/api-server/package.json artifacts/api-server/
+
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy the built bundle
+COPY --from=builder /build/artifacts/api-server/dist/ artifacts/api-server/dist/
+
+# ROM and emulator data directories (should be mounted as volumes)
+RUN mkdir -p /roms /data/emulators
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV ROM_STORAGE_PATH=/roms
+ENV EMULATOR_DATA_PATH=/data/emulators
+
+EXPOSE 8080
+
+CMD ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
