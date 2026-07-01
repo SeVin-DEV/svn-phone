@@ -1,13 +1,16 @@
-version: "3.9"
-
 # ── Cloud Phone Manager — self-hosted Docker deployment ─────────────────────
 #
-# Usage:
+# Usage: run `../deploy/setup.sh` from a clean checkout — it writes .env,
+# builds everything, runs the migration, and wires up your ingress
+# (Cloudflare Tunnel or Caddy) interactively.
+#
+# Manual usage:
 #   cp .env.example .env        # fill in SESSION_SECRET and POSTGRES_PASSWORD
 #   docker compose up -d --build
 #
-# Cloudflare tunnel must be pointed at port 80 on this host.
-# The web container listens on 0.0.0.0:80 — Nginx proxies /api to the API.
+# The web container listens on 127.0.0.1:3080 (loopback only). Whatever
+# ingress you point at this host (Cloudflare Tunnel or Caddy) must forward
+# to 127.0.0.1:3080 — see setup.sh / caddy-tunnel.md.
 #
 # To update after a git pull:
 #   docker compose up -d --build
@@ -31,15 +34,16 @@ services:
       retries: 10
 
   # ── DB migration (runs once, then exits) ─────────────────────────────────
+  # Uses the `builder` stage, not the final runtime image — drizzle-kit is a
+  # devDependency and is pruned from the runtime image (`pnpm install --prod`),
+  # so running this against the runtime stage always crashes on missing binary.
   migrate:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.api
-    command: >
-      sh -c "node -e \"
-        const { execSync } = require('child_process');
-        execSync('npx drizzle-kit push --config /app/lib/db/drizzle.config.ts', { stdio: 'inherit' });
-      \""
+      target: builder
+    working_dir: /build
+    command: ["pnpm", "--filter", "@workspace/db", "run", "push"]
     environment:
       DATABASE_URL: postgres://svnphone:${POSTGRES_PASSWORD}@postgres:5432/svnphone
     depends_on:
@@ -81,7 +85,13 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "80:80"   # Cloudflare tunnel points here → phone.svn-dev.online
+      # Bound to loopback only, on a non-privileged port. A single host-level
+      # ingress (Cloudflare Tunnel or Caddy — configured by setup.sh) is what
+      # actually owns 0.0.0.0:80/443 and forwards to 127.0.0.1:3080. Binding
+      # this container straight to 0.0.0.0:80 is what caused the Nginx
+      # "Address already in use" crash loop when both tried to grab the same
+      # public interface.
+      - "127.0.0.1:3080:80"
     depends_on:
       - api
 

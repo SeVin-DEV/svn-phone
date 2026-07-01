@@ -124,29 +124,18 @@ Each image is ~500 MB. User data accumulates separately in `/data/emulators/<id>
 ## 3. First-time deploy
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/SeVin-DEV/svn-phone.git
 cd svn-phone/deploy
-
-# 2. Set your secrets
-cp .env.example .env
-nano .env
-# Fill in:
-#   SESSION_SECRET=<output of: openssl rand -hex 32>
-#   POSTGRES_PASSWORD=<strong password>
-
-# 3. Launch everything
-docker compose up -d --build
-
-# 4. Verify services are healthy
-docker compose ps
-docker compose logs -f api
+./setup.sh
 ```
 
-After a minute or so, the web UI is available at **http://server-ip** (port 80).
+`setup.sh` handles Docker install checks, kernel modules, secrets, build, migration, and
+domain/TLS setup (Cloudflare Tunnel or Caddy) interactively — see `README.md` for what it
+does step by step, or the manual steps if you'd rather not run it.
 
-Your Cloudflare tunnel routes `phone.svn-dev.online` → port 80 on the server, so
-the UI is available at **https://phone.svn-dev.online** with no extra config.
+The app always listens locally on **http://127.0.0.1:3080** — it does not bind the public
+interface directly. Whichever ingress you set up (Cloudflare Tunnel or Caddy) is what makes
+it reachable at your domain, e.g. **https://phone.svn-dev.online**.
 
 ### Updating after a code change
 
@@ -413,6 +402,6 @@ ls /dev/binder*   # should show /dev/binder
 
 The API is running but the DB might not be migrated:
 ```bash
-docker compose logs migrate
+docker compose run --rm migrate
 docker compose restart api
 ```

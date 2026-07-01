@@ -1,0 +1,59 @@
+# ── SVN-PHONE DEPLOYMENT ERROR & SYMPTOM LOG ─────────────────────────────────
+#
+# A raw compilation of the crashes, conflicts, and failures faced during 
+# the deployment stack orchestration.
+# ─────────────────────────────────────────────────────────────────────────────
+
+1. THE MIGRATE-1 CONTAINER CRASH
+   - Symptom: The migration container ('deploy-api-1' / 'migrate-1') threw 
+     immediate fatal exit codes on startup.
+   - Failure: The docker-compose.yml was executing an unaligned node/sh 
+     command structure with completely broken workspace path variables.
+
+2. THE DATABASE MIGRATION COLLAPSE
+   - Symptom: The initial execution of 'npx drizzle' crashed out entirely.
+   - Failure: Terminal flooded with missing flags, unrecognized options, and 
+     invalid configuration directory path errors.
+
+3. THE PNPM FROZEN LOCKFILE FAILURE
+   - Symptom: The Docker build pipeline choked and aborted during the 
+     dependency installation phase.
+   - Failure: The local workspace lockfile did not perfectly match package 
+     configurations, causing 'pnpm install --frozen-lockfile' to reject the build.
+
+4. THE VITE BUILD PATH DISCONNECT
+   - Symptom: The production asset compilation phase completed, but the UI 
+     routing engine returned blank pages or fallback data.
+   - Failure: The Vite build pathing output dropped files into a nested folder 
+     structure that did not line up with standard root web expectations.
+
+5. MISSING CONFIGURATION FILE ERRORS
+   - Symptom: Application components repeatedly threw fatal initialization 
+     crashes during 'docker compose up'.
+   - Failure: Microservices complained they could not locate crucial database 
+     settings and environment blueprint files that were missing from the tree.
+
+6. PORT BIND ALLOCATION COLLISION
+   - Symptom: Host terminal threw fatal bind/allocation errors when trying to 
+     boot the Docker container network stack.
+   - Failure: Multiple processes (host Nginx vs. container Nginx) were aggressively 
+     trying to grab the public wildcard interface (0.0.0.0:80) at the same time.
+
+7. NGINX INTERNAL LOOP CRASH
+   - Symptom: Web container's internal logs flooded with repeating emergency blocks:
+     "nginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address already in use)"
+     "nginx: [emerg] still could not bind()"
+   - Failure: Internal port mapping loops caused Nginx to fight with its own 
+     configuration inside the isolated network layer.
+
+8. CLOUDFLARE TUNNEL FAILURE (ERROR 1033)
+   - Symptom: Attempting to access the live web domain dropped a hard 
+     Cloudflare "Error 1033" gateway screen.
+   - Failure: The background tunnel daemon ('cloudflared') was completely 
+     missing from the host system following the clean server wipe.
+
+9. THE PHANTOM NGINX WELCOME SPLASH
+   - Symptom: The live URL bypassed the Cloudflare error but loaded a completely 
+     stale, generic "Welcome to nginx" placeholder landing page.
+   - Failure: The container's Nginx router could not locate the actual user 
+     dashboard and login interface assets, falling back to stock image defaults.

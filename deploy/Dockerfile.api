@@ -9,11 +9,13 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY tsconfig.base.json tsconfig.json ./
 
-# Copy all package manifests
+# Copy all workspace package manifests (must match every member in
+# pnpm-workspace.yaml or `pnpm install --frozen-lockfile` rejects the build)
 COPY lib/api-spec/package.json        lib/api-spec/
 COPY lib/api-zod/package.json         lib/api-zod/
 COPY lib/api-client-react/package.json lib/api-client-react/
 COPY lib/db/package.json              lib/db/
+COPY scripts/package.json             scripts/
 COPY artifacts/api-server/package.json artifacts/api-server/
 
 RUN pnpm install --frozen-lockfile
@@ -40,12 +42,15 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy workspace manifests (needed so pnpm can resolve node_modules)
+# Copy workspace manifests (needed so pnpm can resolve node_modules) — must
+# match every member in pnpm-workspace.yaml, same as the builder stage above,
+# or --frozen-lockfile rejects the install here too.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY lib/api-spec/package.json        lib/api-spec/
 COPY lib/api-zod/package.json         lib/api-zod/
 COPY lib/api-client-react/package.json lib/api-client-react/
 COPY lib/db/package.json              lib/db/
+COPY scripts/package.json             scripts/
 COPY artifacts/api-server/package.json artifacts/api-server/
 
 RUN pnpm install --frozen-lockfile --prod

@@ -1,5 +1,10 @@
 # Exposing the web UI on your domain (phone.svn-dev.online)
 
+> `./setup.sh` now does all of this for you interactively (installs
+> cloudflared/Caddy, creates the tunnel or Caddyfile, points it at
+> `127.0.0.1:3080`). This file is the manual reference if you want to do it
+> yourself or understand what the script is doing.
+
 Two easy options — pick whichever matches your setup.
 
 ---
