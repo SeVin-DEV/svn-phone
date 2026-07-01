@@ -13,6 +13,13 @@ export type HardwareSpec = {
   hasCamera: boolean;
 };
 
+export type LaunchConfig = {
+  enableRoot: boolean;
+  enableSELinuxPermissive: boolean;
+  buildPropOverrides: Array<{ key: string; value: string }>;
+  extraEnvVars: Array<{ key: string; value: string }>;
+};
+
 export const emulatorsTable = pgTable("emulators", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -24,6 +31,7 @@ export const emulatorsTable = pgTable("emulators", {
   apiLevel: integer("api_level").notNull(),
   status: text("status").notNull().default("stopped"),
   hardware: jsonb("hardware").notNull().$type<HardwareSpec>(),
+  launchConfig: jsonb("launch_config").$type<LaunchConfig>(),  // pre-launch modifications
   vncPort: integer("vnc_port"),         // QEMU VNC port
   adbPort: integer("adb_port"),         // ADB port (all types)
   pid: integer("pid"),                  // QEMU process PID

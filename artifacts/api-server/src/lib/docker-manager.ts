@@ -12,6 +12,7 @@
 
 import Docker from "dockerode";
 import { logger } from "./logger.js";
+import type { LaunchConfig } from "@workspace/db";
 
 const SOCKET_PATH = process.env.DOCKER_SOCKET_PATH ?? "/var/run/docker.sock";
 const DATA_BASE_PATH = process.env.EMULATOR_DATA_PATH ?? "/data/emulators";
@@ -47,15 +48,15 @@ export async function startRedroidContainer(opts: {
     hasCamera: boolean;
   };
   adbPort: number;
-  romFilePath?: string; // absolute path to a GSI .img file inside the container
+  romFilePath?: string;
+  launchConfig?: LaunchConfig | null;
 }): Promise<StartResult> {
   const docker = new Docker({ socketPath: SOCKET_PATH });
-  const { emulatorId, androidVersion, hardware, adbPort, romFilePath } = opts;
+  const { emulatorId, androidVersion, hardware, adbPort, romFilePath, launchConfig } = opts;
 
   const image = getRedroidImage(androidVersion);
   const containerName = `svn-phone-${emulatorId}`;
 
-  // Remove any stale container with the same name
   await removeContainerIfExists(docker, containerName);
 
   const env: string[] = [
@@ -71,11 +72,38 @@ export async function startRedroidContainer(opts: {
     env.push("androidboot.redroid_camera_front=emulated");
   }
 
+  // ── Apply launch config ───────────────────────────────────────────────────
+  if (launchConfig) {
+    if (launchConfig.enableRoot) {
+      env.push("androidboot.redroid_root=1");
+      logger.info({ emulatorId }, "Root access enabled via launchConfig");
+    }
+
+    if (launchConfig.enableSELinuxPermissive) {
+      env.push("androidboot.selinux=permissive");
+      logger.info({ emulatorId }, "SELinux set to permissive via launchConfig");
+    }
+
+    // Build prop overrides — Redroid accepts them as androidboot.* env vars for
+    // certain props; for system-level overrides they are written to /data/property/
+    // via a container entrypoint hook (if the Redroid image supports it).
+    // We pass them as REDROID_PROP_* env vars for runtime pickup by the init script.
+    for (const { key, value } of launchConfig.buildPropOverrides) {
+      env.push(`REDROID_PROP_${key.replace(/\./g, "_")}=${value}`);
+      // Also try the androidboot.* variant for recognized props
+      env.push(`androidboot.${key}=${value}`);
+    }
+
+    // Arbitrary extra environment variables
+    for (const { key, value } of launchConfig.extraEnvVars) {
+      env.push(`${key}=${value}`);
+    }
+  }
+
   const binds: string[] = [
     `${DATA_BASE_PATH}/${emulatorId}:/data`,
   ];
 
-  // If a custom GSI ROM was provided, mount the ROM directory read-only
   if (romFilePath) {
     binds.push(`${romFilePath}:/system.img:ro`);
   }
@@ -113,12 +141,11 @@ export async function stopRedroidContainer(containerId: string): Promise<void> {
 
   try {
     const container = docker.getContainer(containerId);
-    await container.stop({ t: 10 }); // 10s graceful shutdown
+    await container.stop({ t: 10 });
     await container.remove({ force: true });
     logger.info({ containerId }, "Redroid container stopped and removed");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    // Container already gone — that's fine
     if (msg.includes("No such container") || msg.includes("is not running")) {
       logger.warn({ containerId }, "Container already stopped/removed");
       return;

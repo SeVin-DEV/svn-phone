@@ -1,12 +1,16 @@
 version: "3.9"
 
 # ── Cloud Phone Manager — self-hosted Docker deployment ─────────────────────
-# Usage:
-#   cp .env.example .env   # fill in SESSION_SECRET and DB password
-#   docker compose up -d
 #
-# To update:
-#   docker compose pull && docker compose up -d --build
+# Usage:
+#   cp .env.example .env        # fill in SESSION_SECRET and POSTGRES_PASSWORD
+#   docker compose up -d --build
+#
+# Cloudflare tunnel must be pointed at port 80 on this host.
+# The web container listens on 0.0.0.0:80 — Nginx proxies /api to the API.
+#
+# To update after a git pull:
+#   docker compose up -d --build
 
 services:
 
@@ -26,43 +30,16 @@ services:
       timeout: 5s
       retries: 10
 
-  # ── API server ────────────────────────────────────────────────────────────
-  api:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.api
-    restart: unless-stopped
-    environment:
-      DATABASE_URL:    postgres://svnphone:${POSTGRES_PASSWORD}@postgres:5432/svnphone
-      SESSION_SECRET:  ${SESSION_SECRET}
-      PORT:            8080
-      ROM_STORAGE_PATH:    /roms
-      EMULATOR_DATA_PATH:  /data/emulators
-      DOCKER_SOCKET_PATH:  /var/run/docker.sock
-    volumes:
-      # Docker socket — lets the API spin up Redroid containers
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Persistent ROM library (survives container rebuilds)
-      - rom_data:/roms
-      # Per-emulator data (ADB keys, user data partitions)
-      - emulator_data:/data/emulators
-    depends_on:
-      postgres:
-        condition: service_healthy
-    # QEMU needs /dev/kvm for hardware acceleration on x86 hosts
-    devices:
-      - /dev/kvm:/dev/kvm
-    # Redroid requires these Linux capabilities
-    cap_add:
-      - NET_ADMIN
-
-  # ── DB migration (runs once on first boot, then exits) ────────────────────
+  # ── DB migration (runs once, then exits) ─────────────────────────────────
   migrate:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.api
     command: >
-      sh -c "npx drizzle-kit push --config lib/db/drizzle.config.ts"
+      sh -c "node -e \"
+        const { execSync } = require('child_process');
+        execSync('npx drizzle-kit push --config /app/lib/db/drizzle.config.ts', { stdio: 'inherit' });
+      \""
     environment:
       DATABASE_URL: postgres://svnphone:${POSTGRES_PASSWORD}@postgres:5432/svnphone
     depends_on:
@@ -70,7 +47,32 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # ── Frontend (nginx serving built React app) ──────────────────────────────
+  # ── API server ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL:        postgres://svnphone:${POSTGRES_PASSWORD}@postgres:5432/svnphone
+      SESSION_SECRET:      ${SESSION_SECRET}
+      PORT:                8080
+      ROM_STORAGE_PATH:    /roms
+      EMULATOR_DATA_PATH:  /data/emulators
+      DOCKER_SOCKET_PATH:  /var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # spin up Redroid containers
+      - rom_data:/roms                               # uploaded ROM files
+      - emulator_data:/data/emulators                # per-emulator user data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    devices:
+      - /dev/kvm:/dev/kvm     # QEMU hardware acceleration (x86 hosts)
+    cap_add:
+      - NET_ADMIN              # required for Redroid networking
+
+  # ── Nginx — serves the React app and proxies /api ─────────────────────────
   web:
     build:
       context: ..
@@ -79,8 +81,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      # Expose on 80 — Caddy/Cloudflare tunnel fronts this on your domain
-      - "127.0.0.1:3080:80"
+      - "80:80"   # Cloudflare tunnel points here → phone.svn-dev.online
     depends_on:
       - api
 

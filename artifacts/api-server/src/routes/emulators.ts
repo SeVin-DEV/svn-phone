@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, emulatorsTable, snapshotsTable, romsTable } from "@workspace/db";
+import { db, emulatorsTable, snapshotsTable, romsTable, type LaunchConfig } from "@workspace/db";
 import {
   CreateEmulatorBody,
   UpdateEmulatorBody,
@@ -259,6 +259,7 @@ router.post("/emulators/:id/start", async (req, res): Promise<void> => {
         },
         adbPort,
         romFilePath,
+        launchConfig: row.launchConfig ?? null,
       });
       containerId = result.containerId;
 
@@ -417,6 +418,48 @@ router.post("/emulators/:id/snapshot", async (req, res): Promise<void> => {
     ...snapshot,
     createdAt: snapshot.createdAt.toISOString(),
   }));
+});
+
+// PUT /emulators/:id/launch-config
+router.put("/emulators/:id/launch-config", async (req, res): Promise<void> => {
+  const { id } = req.params;
+
+  const [row] = await db
+    .select()
+    .from(emulatorsTable)
+    .where(eq(emulatorsTable.id, id));
+
+  if (!row) {
+    res.status(404).json({ error: "not_found", message: "Emulator not found" });
+    return;
+  }
+
+  if (row.status !== "stopped") {
+    res.status(409).json({ error: "conflict", message: "Stop the emulator before changing its launch config" });
+    return;
+  }
+
+  const body = req.body as LaunchConfig;
+  if (typeof body !== "object" || body === null) {
+    res.status(400).json({ error: "invalid_request", message: "Body must be a JSON object" });
+    return;
+  }
+
+  const launchConfig: LaunchConfig = {
+    enableRoot: Boolean(body.enableRoot),
+    enableSELinuxPermissive: Boolean(body.enableSELinuxPermissive),
+    buildPropOverrides: Array.isArray(body.buildPropOverrides) ? body.buildPropOverrides : [],
+    extraEnvVars: Array.isArray(body.extraEnvVars) ? body.extraEnvVars : [],
+  };
+
+  const [updated] = await db
+    .update(emulatorsTable)
+    .set({ launchConfig })
+    .where(eq(emulatorsTable.id, id))
+    .returning();
+
+  req.log.info({ emulatorId: id }, "Launch config updated");
+  res.json({ ...toApiEmulator(updated), launchConfig: updated.launchConfig });
 });
 
 // GET /emulators/:id/snapshots
